@@ -1,6 +1,6 @@
 ---
-title: "ESM 206 Lab 2 Part 1"
-subtitle: "Wrangling continued, pivot_longer(), ggplot2 customization"
+title: "ESM 206 Lab 2"
+subtitle: "R Markdown, wrangling & ggplot continued"
 author: "Allison Horst"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
