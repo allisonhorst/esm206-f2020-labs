@@ -1,0 +1,199 @@
+---
+title: "ESM 206 Lab 2"
+subtitle: "R Markdown, wrangling & ggplot continued"
+author: "Allison Horst"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+# Attach packages
+library(tidyverse)
+library(janitor)
+library(here)
+```
+
+## Lab 2 objectives:
+
+- Project management (subfolder structure & `here`)
+- Continue meeting R Markdown
+- More data wrangling (`arrange`, `fct_reorder`, filtering, and summary tables with `group_by` + `summarize`)
+- Customization in `ggplot2`
+
+## Packages required: 
+
+- `tidyverse`
+- `janitor`
+- `here`
+
+### 1. Lab set-up & project management: 
+
+- Create a new project (within your ESM 206 labs folder)
+- Add subfolders `data`, `img`, `src`
+- Copy and paste the ca_agriculture.csv file into the project `data` folder
+- In RStudio, create a new RMarkdown doc (.Rmd). Save to the `src` folder
+
+## 2. A couple more R Markdown tips 
+
+1. URL
+
+    - Add a functional URL by just copying & pasting it: https://www.ucsb.edu/
+
+    - Or add linked text [like this](https://www.ucsb.edu/).
+
+2. Superscripts / subscripts
+
+    - Superscript text with a ^ on either side: like^this^
+
+    - Subscript text with a ~ on either side: like~this~
+
+3. Add image from a URL
+
+    - Find an image online (for more octocats - the GitHub mascot- visit https://octodex.github.com/)
+
+    - Right click > Copy image location
+
+    - Paste the image location into the parentheses in this format: `![](paste_image_location_here.png)`
+
+For example: 
+
+![](https://octodex.github.com/images/dinotocat.png)
+
+But ask yourself: how does that break? What might be a safer and more robust way to include an image? 
+
+## 3. Easier file paths with `here()`
+
+Today we'll use information from California crop production from 2014. 
+
+We want to read in the ca_agriculture.csv data. But unlike last week, this file isn't directly in our project *root* (top level of the project folder) - it is in a subfolder called `data`. We need an easy way to point R into that folder to find the file we want. 
+
+Remember: when working in projects, the working directory **is** the project folder. You can also find what the working directory is by running `here()` in the Console. Try it out! Notice it's your R Project folder. 
+
+First, open the CSV in Excel or other spreadsheet software (outside of R, open the file & it will open in Excel if you have it). Make sure to take a look at the data after you read them in. 
+
+```{r}
+# Read in the ca_agriculture.csv file
+
+ca_ag <- read_csv(here("lab_2","data","ca_agriculture.csv")) %>% 
+  clean_names()
+
+```
+
+## 4. More `dplyr::filter()` examples
+
+a. Keep data from counties "Kern" OR "Inyo" OR "Mono"
+
+Use `%in%` to look for multiple acceptable matches. 
+
+```{r}
+ex_a <- ca_ag %>% 
+  filter(county %in% c("Kern", "Inyo", "Mono"))
+```
+
+b. Keep data for all counties EXCEPT Merced
+
+Use `!=` to say "DOES NOT MATCH":
+
+```{r}
+ex_b <- ca_ag %>% 
+  filter(county != "Merced")
+```
+
+**Tip:** Use the `unique()` function to check with distinct groups remain in a variable
+
+c. Keep observations where crop is "GOATS MILK" and county is "Humboldt"
+
+```{r}
+ex_c <- ca_ag %>% 
+  filter(crop_name == "GOATS MILK", county == "Humboldt")
+```
+
+d. Keep observations where crop is "GRAPES WINE" **or** harvest acres is greater than 1,000,000:
+
+```{r}
+ex_d <- ca_ag %>% 
+  filter(crop_name == "GRAPES WINE" | harvest_acres > 1e6)
+```
+
+## 5. `group_by()` + `summarize()` for tables of summary statistics
+
+We often want to find summary statistics (e.g. mean, standard deviation, max, min, etc.) within *groups* for our data. For example, we may want to find the total *value* of crops by *county* for California in 2014. But it would be really tedious to make a different subset for each county, then find those statistics. 
+
+Instead, we will use the powerful combination of `dplyr::group_by()` and `summarize()` to:
+
+- Recognize distinct groups within a variable
+- Apply a function to each *group*
+- Return the outcomes in a nice table
+
+It is awesome. You should plan on using this all the time (if you're an Excel wizard, this is your replacement for pivot tables).
+
+We will pipe them together in a single sequences. 
+
+a. Create a summary table of the total sum of *value* by *county* for "GRAPES WINE". 
+
+```{r}
+ca_grapes <- ca_ag %>% 
+  filter(crop_name == "GRAPES WINE") %>% 
+  group_by(county) %>% 
+  summarize(
+    total_value_usd = sum(value)
+  ) %>% 
+  arrange(-total_value_usd) %>% # Arrange sorts things in order
+  filter(county != "State Total") %>%  # Get rid of the summary value
+  head(10) # Head only keeps the top 'x' lines
+
+ca_grapes # return the table in knitted doc
+```
+
+b. Another example: find the total yield (tons) by county for any crops containing the string "LETTUCE"
+
+```{r}
+ca_lettuce <- ca_ag %>% 
+  filter(str_detect(crop_name, "LETTUCE")) %>%
+  filter(!county %in% c("State Total","Sum of Others")) %>% 
+  group_by(county) %>% 
+  summarize(production_acres = sum(production, na.rm = TRUE),
+            harvested_acres = sum(harvest_acres, na.rm = TRUE))
+
+ca_lettuce # return the table in knitted doc
+```
+## 5. Customizing ggplot graphs
+
+In the Week 1 Assignment, you made 4 basic ggplot graphs. Throughout the rest of the quarter, we will emphasize data visualization as a critical part of science communication. 
+
+Here, let's cover several useful ways to customize our ggplot graphs! 
+
+```{r}
+ggplot(data = ca_lettuce, 
+       aes(x = fct_reorder(county, harvested_acres), 
+                                    y = harvested_acres)) +
+  geom_col(fill = "gray70") +
+  labs(x = "California County",
+       y = "Harvested land (acres)",
+       title = "California's top 10 lettuce producing counties (2014)") +
+  coord_flip() +
+  theme_minimal()
+```
+
+Another example: jitterplot
+
+```{r}
+
+cc_ag <- ca_ag %>% 
+  filter(county %in% c("San Luis Obispo", "Santa Barbara", "Ventura"))
+
+ggplot(data = cc_ag, aes(x = county, y = production)) + 
+  geom_jitter(width = 0.1, 
+              alpha = 0.8,
+              size = 2,
+              aes(color = county),
+              show.legend = FALSE) +
+  theme_minimal() +
+  scale_color_manual(values = c("purple",
+                                "darkorange",
+                                "cyan4")) +
+  labs(x = "California county",
+       y = "Agricultural production (acres per farm)", 
+       title = "California agriculture (2014)")
+```
+
